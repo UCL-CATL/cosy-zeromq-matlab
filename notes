@@ -1,0 +1,15 @@
+Savoir si les sockets sont bien libérées quand le processus crashe :
+netstat -nap | grep <nom-processus>
+
+En lançant le subscriber et en l'arrêtant de manière brute (Ctrl+C),
+zmq_close() et zmq_ctx_destroy() ne sont pas appelés, mais le processus
+n'est plus présent dans la sortie de netstat. L'avertissement comme quoi
+c'est important d'appeler close/destroy est plutôt pour les processus
+multi-thread qui ont une longue durée de vie, où des centaines de threads sont
+créés/détruits, ou bien un processus qui crée/détruit plusieurs sockets au
+cours de sa (paisible) vie. Pour un seul processus qui ne crée qu'une seule
+socket (comme c'est le cas pour nous), apparemment ce n'est pas si grave, si le
+subscriber crashe il libère normalement les ressources du système
+d'exploitation. Par Contre quand un programme Matlab crashe, le processus
+tourne toujours, donc il faut pouvoir gérer correctement une multiple
+initialisation (et fermer l'ancienne socket si elle est déjà initialisée).
