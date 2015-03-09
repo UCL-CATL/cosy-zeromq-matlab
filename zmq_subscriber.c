@@ -1,9 +1,34 @@
 /* Subscriber - listen everything. */
 
-#include <ctype.h>
 #include <string.h>
+#include <assert.h>
 #include "zhelpers.h"
 #include "mex.h"
+
+#if (defined (WIN32))
+/* The function is available on GNU/Linux, but not on Windows.
+ * Copy/paste from a version found on the web.
+ */
+static char *
+strsep (char **sp, char *sep)
+{
+	char *p, *s;
+
+	if (sp == NULL || *sp == NULL || **sp == '\0')
+	{
+		return NULL;
+	}
+
+	s = *sp;
+	p = s + strcspn(s, sep);
+	if (*p != '\0')
+	{
+		*p++ = '\0';
+	}
+	*sp = p;
+	return s;
+}
+#endif
 
 /* Support multiple initializations, if the Matlab program crashes, the process
  * isn't killed.
