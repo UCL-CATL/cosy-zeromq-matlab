@@ -2,9 +2,11 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "zhelpers.h"
 
 #define MAX_MSG_LENGTH 255
+#define SLEEP_TIME 10 /* in ms */
 
 int
 main (int argc,
@@ -14,8 +16,8 @@ main (int argc,
 	char *tag;
 	void *context;
 	void *publisher;
-	char msg[MAX_MSG_LENGTH + 1] = ""; /* "+ 1" for the null character */
 	int ok;
+	int msg_num;
 
 	if (argc != 3)
 	{
@@ -33,15 +35,19 @@ main (int argc,
 	ok = zmq_bind (publisher, endpoint);
 	assert (ok == 0);
 
-	/* Create message */
-	assert (msg[0] == '\0');
-	strncat (msg, tag, MAX_MSG_LENGTH);
-	strncat (msg, "\nbar:gloups\n", MAX_MSG_LENGTH - strlen (tag));
-
+	msg_num = 1;
 	while (1)
 	{
+		char msg[MAX_MSG_LENGTH];
+
+		usleep (SLEEP_TIME * 1000);
+
+		snprintf (msg, MAX_MSG_LENGTH, "%s\nnum:%d\n", tag, msg_num);
+
 		s_send (publisher, msg);
 		s_send (publisher, "Other\nblah:1337\n");
+
+		msg_num++;
 	}
 
 	zmq_close (publisher);

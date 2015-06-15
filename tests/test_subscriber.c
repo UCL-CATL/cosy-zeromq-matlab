@@ -8,6 +8,7 @@ main (void)
 	void *subscriber_world;
 	char *filter;
 	int i;
+	int last;
 	int ok;
 
 	context = zmq_ctx_new ();
@@ -33,17 +34,28 @@ main (void)
 			     strlen (filter));
 	assert (ok == 0);
 
-	for (i = 0; i < 4; i++)
+	last = 300;
+	for (i = 1; i <= last; i++)
 	{
 		char *msg = s_recv (subscriber_eye);
-		printf ("Eye:\n%s\n", msg);
+
+		if (i == 1 || i == last)
+		{
+			printf ("Eye:\n%s\n", msg);
+		}
+
 		free (msg);
 	}
 
-	for (i = 0; i < 4; i++)
+	for (i = 1; i <= last; i++)
 	{
 		char *msg = s_recv (subscriber_world);
-		printf ("World:\n%s\n", msg);
+
+		if (i == 1 || i == last)
+		{
+			printf ("World:\n%s\n", msg);
+		}
+
 		free (msg);
 	}
 
