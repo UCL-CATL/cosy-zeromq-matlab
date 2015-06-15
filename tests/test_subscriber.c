@@ -11,6 +11,9 @@ main (void)
 
 	context = zmq_ctx_new ();
 	subscriber = zmq_socket (context, ZMQ_SUB);
+	ok = zmq_connect (subscriber, "tcp://localhost:5000");
+	assert (ok == 0);
+
 	ok = zmq_connect (subscriber, "tcp://localhost:5001");
 	assert (ok == 0);
 
@@ -28,7 +31,7 @@ main (void)
 			     strlen (filter));
 	assert (ok == 0);
 
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < 20; i++)
 	{
 		char *msg = s_recv (subscriber);
 		printf ("%s\n", msg);
