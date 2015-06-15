@@ -14,14 +14,21 @@ main (void)
 	ok = zmq_connect (subscriber, "tcp://localhost:5001");
 	assert (ok == 0);
 
-	filter = "";
+	filter = "Pupil";
 	ok = zmq_setsockopt (subscriber,
 			     ZMQ_SUBSCRIBE,
 			     filter,
 			     strlen (filter));
 	assert (ok == 0);
 
-	for (i = 0; i < 3; i++)
+	filter = "Gaze";
+	ok = zmq_setsockopt (subscriber,
+			     ZMQ_SUBSCRIBE,
+			     filter,
+			     strlen (filter));
+	assert (ok == 0);
+
+	for (i = 0; i < 4; i++)
 	{
 		char *msg = s_recv (subscriber);
 		printf ("%s\n", msg);

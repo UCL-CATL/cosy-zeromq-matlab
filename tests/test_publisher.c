@@ -19,6 +19,7 @@ main (void)
 	{
 		s_send (publisher, "Pupil\nfoo:6\nbar:gloups\n");
 		s_send (publisher, "Gaze\nbar:10.64\n");
+		s_send (publisher, "Other\nblah:1337\n");
 	}
 
 	zmq_close (publisher);
