@@ -34,7 +34,7 @@ main (void)
 			     strlen (filter));
 	assert (ok == 0);
 
-	last = 300;
+	last = 100 * 60 * 2;
 	for (i = 1; i <= last; i++)
 	{
 		char *msg = s_recv (subscriber_eye);
