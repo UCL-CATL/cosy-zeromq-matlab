@@ -77,14 +77,9 @@ s_send (void *socket,
 }
 
 static void
-init_zmq (void)
+close_zmq (void)
 {
 	int i;
-
-	if (context == NULL)
-	{
-		context = zmq_ctx_new ();
-	}
 
 	for (i = 0; i < next_subscriber_index; i++)
 	{
@@ -99,6 +94,23 @@ init_zmq (void)
 	}
 
 	next_subscriber_index = 0;
+
+	if (context != NULL)
+	{
+		zmq_ctx_destroy (context);
+		context = NULL;
+	}
+}
+
+static void
+init_zmq (void)
+{
+	close_zmq ();
+
+	assert (context == NULL);
+	context = zmq_ctx_new ();
+
+	assert (next_subscriber_index == 0);
 }
 
 static int
@@ -396,6 +408,21 @@ mexFunction (int n_return_values,
 
 		str_array_free (field_names, n_fields);
 		str_array_free (values, n_fields);
+	}
+	else if (strcmp (command, "close") == 0)
+	{
+		if (n_return_values > 0)
+		{
+			mexErrMsgTxt ("zmq_subscriber error: close command: "
+				      "you cannot assign a result with this call.");
+		}
+
+		if (n_args > 1)
+		{
+			mexErrMsgTxt ("zmq_subscriber error: close command: too many arguments.");
+		}
+
+		close_zmq ();
 	}
 
 	mxFree (command);

@@ -15,3 +15,5 @@ end
 for i = 1:3
     zmq_subscriber('receive_next_message', subscriber_world)
 end
+
+zmq_subscriber('close');
