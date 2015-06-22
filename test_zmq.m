@@ -1,8 +1,17 @@
 clear all;
 
-%zmq_subscriber('init', 'tcp://localhost:5001', 'Pupil');
-zmq_subscriber('init', 'tcp://192.168.1.1:5000', '');
+zmq_subscriber('init');
 
-for i = 1:5
-    zmq_subscriber('receive_next_message')
+subscriber_eye = zmq_subscriber('add_subscriber', 'tcp://localhost:5000');
+zmq_subscriber('add_filter', subscriber_eye, 'Pupil');
+
+subscriber_world = zmq_subscriber('add_subscriber', 'tcp://localhost:5001');
+zmq_subscriber('add_filter', subscriber_world, 'Gaze');
+
+for i = 1:3
+    zmq_subscriber('receive_next_message', subscriber_eye)
+end
+
+for i = 1:3
+    zmq_subscriber('receive_next_message', subscriber_world)
 end

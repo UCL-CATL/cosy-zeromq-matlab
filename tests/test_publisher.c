@@ -44,12 +44,14 @@ main (int argc,
 		usleep (SLEEP_TIME * 1000);
 
 		snprintf (msg, MAX_MSG_LENGTH, "%s\nnum:%d\n", tag, msg_num);
+		/*
 		for (i = strlen (msg); i < MAX_MSG_LENGTH - 1; i++)
 		{
 			msg[i] = '0';
 		}
 		msg[MAX_MSG_LENGTH - 1] = '\0';
 		assert (strlen (msg) == MAX_MSG_LENGTH - 1);
+		*/
 
 		s_send (publisher, msg);
 		s_send (publisher, "Other\nblah:1337\n");

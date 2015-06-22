@@ -5,11 +5,14 @@
 #include <assert.h>
 #include "mex.h"
 
+#define MAX_SUBSCRIBERS 128
+
 /* Support multiple initializations, because if the Matlab script crashes, the process
  * isn't killed.
  */
 static void *context = NULL;
-static void *subscriber = NULL;
+static void *subscribers[MAX_SUBSCRIBERS] = { NULL };
+static int next_subscriber_index = 0;
 
 #if (defined (WIN32))
 /* The function is available on GNU/Linux, but not on Windows.
@@ -74,28 +77,87 @@ s_send (void *socket,
 }
 
 static void
-init_zmq (const char *end_point,
-	  const char *filter)
+init_zmq (void)
 {
-	int ok;
+	int i;
 
 	if (context == NULL)
 	{
 		context = zmq_ctx_new ();
 	}
 
-	if (subscriber != NULL)
+	for (i = 0; i < next_subscriber_index; i++)
 	{
-		zmq_close (subscriber);
+		assert (subscribers[i] != NULL);
+		zmq_close (subscribers[i]);
+		subscribers[i] = NULL;
 	}
 
-	subscriber = zmq_socket (context, ZMQ_SUB);
+	for (i = next_subscriber_index; i < MAX_SUBSCRIBERS; i++)
+	{
+		assert (subscribers[i] == NULL);
+	}
 
-	ok = zmq_connect (subscriber, end_point);
+	next_subscriber_index = 0;
+}
+
+static int
+add_subscriber (const char *end_point)
+{
+	void *new_subscriber;
+	int index;
+	int ok;
+
+	if (next_subscriber_index >= MAX_SUBSCRIBERS)
+	{
+		mexErrMsgTxt ("zmq_subscriber error: number of subscribers limit reached, see the MAX_SUBSCRIBERS #define.");
+	}
+
+	new_subscriber = zmq_socket (context, ZMQ_SUB);
+
+	ok = zmq_connect (new_subscriber, end_point);
 	if (ok != 0)
 	{
 		mexErrMsgTxt ("zmq_subscriber error: impossible to connect to the end point.");
 	}
+
+	ok = zmq_setsockopt (new_subscriber, ZMQ_SUBSCRIBE, "", 0);
+	if (ok != 0)
+	{
+		mexErrMsgTxt ("zmq_subscriber error: impossible to set empty filter.");
+	}
+
+	assert (new_subscriber != NULL);
+
+	index = next_subscriber_index;
+	subscribers[index] = new_subscriber;
+	next_subscriber_index++;
+
+	return index;
+}
+
+static int
+valid_subscriber_id (int subscriber_id)
+{
+	return (0 <= subscriber_id && subscriber_id < MAX_SUBSCRIBERS &&
+		subscriber_id < next_subscriber_index);
+}
+
+static void
+add_filter (int subscriber_id,
+	    const char *filter)
+{
+	void *subscriber;
+	int ok;
+
+	if (!valid_subscriber_id (subscriber_id))
+	{
+		mexPrintf ("Invalid subscriber ID.\n");
+		return;
+	}
+
+	subscriber = subscribers[subscriber_id];
+	assert (subscriber != NULL);
 
 	ok = zmq_setsockopt (subscriber, ZMQ_SUBSCRIBE, filter, strlen (filter));
 	if (ok != 0)
@@ -146,14 +208,28 @@ count_lines (char *str)
  * Free 'field_names' and 'values' with str_array_free().
  */
 static int
-receive_message (char ***field_names,
+receive_message (int subscriber_id,
+		 char ***field_names,
 		 char ***values)
 {
+	void *subscriber;
 	char *full_msg;
 	int n_fields;
 	char *msg;
 	char *line;
 	int field_num;
+
+	*field_names = NULL;
+	*values = NULL;
+
+	if (!valid_subscriber_id (subscriber_id))
+	{
+		mexPrintf ("Invalid subscriber ID.\n");
+		return 0;
+	}
+
+	subscriber = subscribers[subscriber_id];
+	assert (subscriber != NULL);
 
 	full_msg = s_recv (subscriber);
 	n_fields = count_lines (full_msg);
@@ -224,30 +300,76 @@ mexFunction (int n_return_values,
 
 	if (strcmp (command, "init") == 0)
 	{
-		char *end_point;
-		char *filter;
-
 		if (n_return_values > 0)
 		{
 			mexErrMsgTxt ("zmq_subscriber error: init command: "
 				      "you cannot assign a result with this call.");
 		}
 
-		if (n_args > 3)
+		if (n_args > 1)
 		{
 			mexErrMsgTxt ("zmq_subscriber error: init command: too many arguments.");
 		}
 
-		end_point = mxArrayToString (args[1]);
-		filter = mxArrayToString (args[2]);
+		init_zmq ();
+	}
+	else if (strcmp (command, "add_subscriber") == 0)
+	{
+		char *end_point;
+		int subscriber_id;
+		int *ret_data;
 
-		init_zmq (end_point, filter);
+		if (n_return_values > 1)
+		{
+			mexErrMsgTxt ("zmq_subscriber error: add_subscriber command: "
+				      "you cannot assign the result to more than one return variable.");
+		}
+
+		if (n_args > 2)
+		{
+			mexErrMsgTxt ("zmq_subscriber error: add_subscriber command: too many arguments.");
+		}
+
+		end_point = mxArrayToString (args[1]);
+
+		subscriber_id = add_subscriber (end_point);
+
+		return_values[0] = mxCreateNumericMatrix (1, 1, mxINT32_CLASS, mxREAL);
+		ret_data = (int *) mxGetData (return_values[0]);
+		*ret_data = subscriber_id;
 
 		mxFree (end_point);
+	}
+	else if (strcmp (command, "add_filter") == 0)
+	{
+		int *arg_data;
+		int subscriber_id;
+		char *filter;
+
+		if (n_return_values > 0)
+		{
+			mexErrMsgTxt ("zmq_subscriber error: add_filter command: "
+				      "you cannot assign a result with this call.");
+		}
+
+		if (n_args > 3)
+		{
+			mexErrMsgTxt ("zmq_subscriber error: add_filter command: too many arguments.");
+		}
+
+		arg_data = (int *) mxGetData (args[1]);
+		subscriber_id = *arg_data;
+
+		filter = mxArrayToString (args[2]);
+
+		add_filter (subscriber_id, filter);
+
 		mxFree (filter);
 	}
 	else if (strcmp (command, "receive_next_message") == 0)
 	{
+		int *arg_data;
+		int subscriber_id;
 		char **field_names;
 		char **values;
 		int n_fields;
@@ -259,13 +381,16 @@ mexFunction (int n_return_values,
 				      "you cannot assign the result to more than one return variable.");
 		}
 
-		if (n_args > 1)
+		if (n_args > 2)
 		{
 			mexErrMsgTxt ("zmq_subscriber error: receive_next_message command: "
 				      "too many arguments.");
 		}
 
-		n_fields = receive_message (&field_names, &values);
+		arg_data = (int *) mxGetData (args[1]);
+		subscriber_id = *arg_data;
+
+		n_fields = receive_message (subscriber_id, &field_names, &values);
 
 		return_values[0] = mxCreateStructMatrix (1, 1, n_fields, (const char **)field_names);
 
