@@ -121,12 +121,6 @@ add_subscriber (const char *end_point)
 		mexErrMsgTxt ("zmq_subscriber error: impossible to connect to the end point.");
 	}
 
-	ok = zmq_setsockopt (new_subscriber, ZMQ_SUBSCRIBE, "", 0);
-	if (ok != 0)
-	{
-		mexErrMsgTxt ("zmq_subscriber error: impossible to set empty filter.");
-	}
-
 	assert (new_subscriber != NULL);
 
 	index = next_subscriber_index;
