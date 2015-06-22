@@ -1,11 +1,11 @@
-/* Subscriber - listen everything. */
+/* ZeroMQ subscriber wrapper for Matlab */
 
 #include <zmq.h>
 #include <string.h>
 #include <assert.h>
 #include "mex.h"
 
-/* Support multiple initializations, because if the Matlab program crashes, the process
+/* Support multiple initializations, because if the Matlab script crashes, the process
  * isn't killed.
  */
 static void *context = NULL;
@@ -47,17 +47,17 @@ s_recv (void *socket)
 {
 	char buffer [256];
 	int size = zmq_recv (socket, buffer, 255, 0);
-	
+
 	if (size == -1)
 	{
 		return NULL;
 	}
-	
+
 	if (size > 255)
 	{
 		size = 255;
 	}
-	
+
 	buffer [size] = '\0';
 	return strdup (buffer);
 }
