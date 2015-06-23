@@ -8,19 +8,29 @@ zmq_subscriber('add_filter', subscriber_eye, 'Pupil');
 subscriber_world = zmq_subscriber('add_subscriber', 'tcp://localhost:5001');
 zmq_subscriber('add_filter', subscriber_world, 'Gaze');
 
-last = 100 * 60 * 2;
-for i = 1:last
-    msg = zmq_subscriber('receive_next_message', subscriber_eye);
-    if i == 1 || i == last
-        msg
-    end
+% Receive messages at 100 Hz during 2 minutes (the publisher must send messages
+% at 100 Hz).
+%last = 100 * 60 * 2;
+%for i = 1:last
+%    msg = zmq_subscriber('receive_next_message', subscriber_eye);
+%    if i == 1 || i == last
+%        msg
+%    end
+%end
+
+%for i = 1:last
+%    msg = zmq_subscriber('receive_next_message', subscriber_world);
+%    if i == 1 || i == last
+%        msg
+%    end
+%end
+
+for i = 1:3
+    zmq_subscriber('receive_next_message', subscriber_eye)
 end
 
-for i = 1:last
-    msg = zmq_subscriber('receive_next_message', subscriber_world);
-    if i == 1 || i == last
-        msg
-    end
+for i = 1:3
+    zmq_subscriber('receive_next_message', subscriber_world)
 end
 
 zmq_subscriber('close');
