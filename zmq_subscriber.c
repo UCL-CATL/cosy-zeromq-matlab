@@ -222,10 +222,10 @@ str_array_free (char **array,
 }
 
 static int
-count_lines (char *str)
+count_lines (const char *str)
 {
 	int n_lines = 0;
-	char *p;
+	const char *p;
 
 	for (p = str; *p != '\0'; p++)
 	{
@@ -238,45 +238,25 @@ count_lines (char *str)
 	return n_lines;
 }
 
-/* Receives the next zmq message, parse it and return the field names and the
- * values. The return value is the number of fields (and thus the number of
- * values too).
- * Free 'field_names' and 'values' with str_array_free().
- */
 static int
-receive_next_message (int subscriber_id,
-		      char ***field_names,
-		      char ***values)
+parse_message (char *full_msg,
+	       char ***field_names,
+	       char ***values)
 {
-	void *subscriber;
-	char *full_msg;
 	int n_fields;
 	char *msg;
 	char *line;
 	int field_num;
 
-	*field_names = NULL;
-	*values = NULL;
-
-	if (!valid_subscriber_id (subscriber_id))
-	{
-		mexPrintf ("Invalid subscriber ID.\n");
-		return 0;
-	}
-
-	subscriber = subscribers[subscriber_id];
-	assert (subscriber != NULL);
-
-	full_msg = receive_message (subscriber);
 	n_fields = count_lines (full_msg);
-
-	*field_names = (char **) malloc (sizeof (char *) * n_fields);
-	*values = (char **) malloc (sizeof (char *) * n_fields);
 
 	if (n_fields == 0)
 	{
 		return n_fields;
 	}
+
+	*field_names = (char **) malloc (sizeof (char *) * n_fields);
+	*values = (char **) malloc (sizeof (char *) * n_fields);
 
 	/* Get message type (first line). */
 	msg = full_msg;
@@ -308,6 +288,37 @@ receive_next_message (int subscriber_id,
 		(*values)[field_num] = strdup (value);
 	}
 
+	return n_fields;
+}
+
+/* Receives the next zmq message, parse it and return the field names and the
+ * values. The return value is the number of fields (and thus the number of
+ * values too).
+ * Free 'field_names' and 'values' with str_array_free().
+ */
+static int
+receive_next_message (int subscriber_id,
+		      char ***field_names,
+		      char ***values)
+{
+	void *subscriber;
+	char *full_msg;
+	int n_fields;
+
+	*field_names = NULL;
+	*values = NULL;
+
+	if (!valid_subscriber_id (subscriber_id))
+	{
+		mexPrintf ("Invalid subscriber ID.\n");
+		return 0;
+	}
+
+	subscriber = subscribers[subscriber_id];
+	assert (subscriber != NULL);
+
+	full_msg = receive_message (subscriber);
+	n_fields = parse_message (full_msg, field_names, values);
 	free (full_msg);
 
 	return n_fields;
