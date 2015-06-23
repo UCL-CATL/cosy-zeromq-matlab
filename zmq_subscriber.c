@@ -132,17 +132,6 @@ receive_message (void *socket)
 	return str;
 }
 
-/* Convert C string to 0MQ string and send to socket.
- * Function taken from zhelpers.
- */
-static int
-s_send (void *socket,
-        char *string)
-{
-	int size = zmq_send (socket, string, strlen (string), 0);
-	return size;
-}
-
 static void
 init_zmq (void)
 {
