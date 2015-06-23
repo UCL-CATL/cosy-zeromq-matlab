@@ -41,71 +41,6 @@ strsep (char **sp, char *sep)
 }
 #endif
 
-/* Receive 0MQ string from socket and convert into C string.
- * Free the return value with free().
- */
-static char *
-receive_message (void *socket)
-{
-	zmq_msg_t msg;
-	int ok;
-	int n_trials;
-	char *str = NULL;
-
-	ok = zmq_msg_init (&msg);
-	if (ok != 0)
-	{
-		mexErrMsgTxt ("zmq_subscriber error: impossible to init message struct.");
-	}
-
-	for (n_trials = 0; n_trials < TIMEOUT_DURATION; n_trials++)
-	{
-		int n_bytes;
-
-		n_bytes = zmq_msg_recv (&msg, socket, ZMQ_DONTWAIT);
-		if (n_bytes == -1 && errno == EAGAIN)
-		{
-			/* Sleep 1 ms and try again */
-			usleep (1000);
-			continue;
-		}
-		else if (n_bytes > 0)
-		{
-			void *raw_data;
-
-			raw_data = zmq_msg_data (&msg);
-			str = strndup ((char *) raw_data, n_bytes);
-		}
-
-		break;
-	}
-
-	if (n_trials >= TIMEOUT_DURATION)
-	{
-		mexErrMsgTxt ("zmq_subscriber error: timeout reached. "
-			      "Is the publisher connected?");
-	}
-
-	ok = zmq_msg_close (&msg);
-	if (ok != 0)
-	{
-		mexErrMsgTxt ("zmq_subscriber error: impossible to close message struct.");
-	}
-
-	return str;
-}
-
-/* Convert C string to 0MQ string and send to socket.
- * Function taken from zhelpers.
- */
-static int
-s_send (void *socket,
-        char *string)
-{
-	int size = zmq_send (socket, string, strlen (string), 0);
-	return size;
-}
-
 static void
 close_zmq (void)
 {
@@ -133,6 +68,82 @@ close_zmq (void)
 }
 
 static void
+print_error (const char *msg)
+{
+	/* Clean-up before exit, so hopefully the Matlab script can be run again
+	 * without restarting Matlab.
+	 */
+	close_zmq ();
+
+	mexErrMsgTxt (msg);
+}
+
+/* Receive 0MQ string from socket and convert into C string.
+ * Free the return value with free().
+ */
+static char *
+receive_message (void *socket)
+{
+	zmq_msg_t msg;
+	int ok;
+	int n_trials;
+	char *str = NULL;
+
+	ok = zmq_msg_init (&msg);
+	if (ok != 0)
+	{
+		print_error ("zmq_subscriber error: impossible to init message struct.");
+	}
+
+	for (n_trials = 0; n_trials < TIMEOUT_DURATION; n_trials++)
+	{
+		int n_bytes;
+
+		n_bytes = zmq_msg_recv (&msg, socket, ZMQ_DONTWAIT);
+		if (n_bytes == -1 && errno == EAGAIN)
+		{
+			/* Sleep 1 ms and try again */
+			usleep (1000);
+			continue;
+		}
+		else if (n_bytes > 0)
+		{
+			void *raw_data;
+
+			raw_data = zmq_msg_data (&msg);
+			str = strndup ((char *) raw_data, n_bytes);
+		}
+
+		break;
+	}
+
+	ok = zmq_msg_close (&msg);
+	if (ok != 0)
+	{
+		print_error ("zmq_subscriber error: impossible to close message struct.");
+	}
+
+	if (n_trials >= TIMEOUT_DURATION)
+	{
+		print_error ("zmq_subscriber error: timeout reached. "
+			     "Is the publisher connected?");
+	}
+
+	return str;
+}
+
+/* Convert C string to 0MQ string and send to socket.
+ * Function taken from zhelpers.
+ */
+static int
+s_send (void *socket,
+        char *string)
+{
+	int size = zmq_send (socket, string, strlen (string), 0);
+	return size;
+}
+
+static void
 init_zmq (void)
 {
 	close_zmq ();
@@ -152,7 +163,7 @@ add_subscriber (const char *end_point)
 
 	if (next_subscriber_index >= MAX_SUBSCRIBERS)
 	{
-		mexErrMsgTxt ("zmq_subscriber error: number of subscribers limit reached, see the MAX_SUBSCRIBERS #define.");
+		print_error ("zmq_subscriber error: number of subscribers limit reached, see the MAX_SUBSCRIBERS #define.");
 	}
 
 	new_subscriber = zmq_socket (context, ZMQ_SUB);
@@ -160,7 +171,7 @@ add_subscriber (const char *end_point)
 	ok = zmq_connect (new_subscriber, end_point);
 	if (ok != 0)
 	{
-		mexErrMsgTxt ("zmq_subscriber error: impossible to connect to the end point.");
+		print_error ("zmq_subscriber error: impossible to connect to the end point.");
 	}
 
 	assert (new_subscriber != NULL);
@@ -198,7 +209,7 @@ add_filter (int subscriber_id,
 	ok = zmq_setsockopt (subscriber, ZMQ_SUBSCRIBE, filter, strlen (filter));
 	if (ok != 0)
 	{
-		mexErrMsgTxt ("zmq_subscriber error: impossible to set filter.");
+		print_error ("zmq_subscriber error: impossible to set filter.");
 	}
 }
 
@@ -324,7 +335,7 @@ mexFunction (int n_return_values,
 
 	if (n_args < 1)
 	{
-		mexErrMsgTxt ("zmq_subscriber error: you must provide the command name and the arguments.");
+		print_error ("zmq_subscriber error: you must provide the command name and the arguments.");
 	}
 
 	command = mxArrayToString (args[0]);
@@ -338,13 +349,13 @@ mexFunction (int n_return_values,
 	{
 		if (n_return_values > 0)
 		{
-			mexErrMsgTxt ("zmq_subscriber error: init command: "
-				      "you cannot assign a result with this call.");
+			print_error ("zmq_subscriber error: init command: "
+				     "you cannot assign a result with this call.");
 		}
 
 		if (n_args > 1)
 		{
-			mexErrMsgTxt ("zmq_subscriber error: init command: too many arguments.");
+			print_error ("zmq_subscriber error: init command: too many arguments.");
 		}
 
 		init_zmq ();
@@ -357,13 +368,13 @@ mexFunction (int n_return_values,
 
 		if (n_return_values > 1)
 		{
-			mexErrMsgTxt ("zmq_subscriber error: add_subscriber command: "
-				      "you cannot assign the result to more than one return variable.");
+			print_error ("zmq_subscriber error: add_subscriber command: "
+				     "you cannot assign the result to more than one return variable.");
 		}
 
 		if (n_args > 2)
 		{
-			mexErrMsgTxt ("zmq_subscriber error: add_subscriber command: too many arguments.");
+			print_error ("zmq_subscriber error: add_subscriber command: too many arguments.");
 		}
 
 		end_point = mxArrayToString (args[1]);
@@ -384,13 +395,13 @@ mexFunction (int n_return_values,
 
 		if (n_return_values > 0)
 		{
-			mexErrMsgTxt ("zmq_subscriber error: add_filter command: "
-				      "you cannot assign a result with this call.");
+			print_error ("zmq_subscriber error: add_filter command: "
+				     "you cannot assign a result with this call.");
 		}
 
 		if (n_args > 3)
 		{
-			mexErrMsgTxt ("zmq_subscriber error: add_filter command: too many arguments.");
+			print_error ("zmq_subscriber error: add_filter command: too many arguments.");
 		}
 
 		arg_data = (int *) mxGetData (args[1]);
@@ -413,14 +424,14 @@ mexFunction (int n_return_values,
 
 		if (n_return_values > 1)
 		{
-			mexErrMsgTxt ("zmq_subscriber error: receive_next_message command: "
-				      "you cannot assign the result to more than one return variable.");
+			print_error ("zmq_subscriber error: receive_next_message command: "
+				     "you cannot assign the result to more than one return variable.");
 		}
 
 		if (n_args > 2)
 		{
-			mexErrMsgTxt ("zmq_subscriber error: receive_next_message command: "
-				      "too many arguments.");
+			print_error ("zmq_subscriber error: receive_next_message command: "
+				     "too many arguments.");
 		}
 
 		arg_data = (int *) mxGetData (args[1]);
@@ -443,13 +454,13 @@ mexFunction (int n_return_values,
 	{
 		if (n_return_values > 0)
 		{
-			mexErrMsgTxt ("zmq_subscriber error: close command: "
-				      "you cannot assign a result with this call.");
+			print_error ("zmq_subscriber error: close command: "
+				     "you cannot assign a result with this call.");
 		}
 
 		if (n_args > 1)
 		{
-			mexErrMsgTxt ("zmq_subscriber error: close command: too many arguments.");
+			print_error ("zmq_subscriber error: close command: too many arguments.");
 		}
 
 		close_zmq ();
