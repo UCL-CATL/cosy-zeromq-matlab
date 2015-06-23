@@ -12,25 +12,25 @@ zmq_subscriber('add_filter', subscriber_world, 'Gaze');
 % at 100 Hz).
 %last = 100 * 60 * 2;
 %for i = 1:last
-%    msg = zmq_subscriber('receive_next_message', subscriber_eye);
+%    msg = zmq_subscriber('receive_next_message', subscriber_eye, 3000);
 %    if i == 1 || i == last
 %        msg
 %    end
 %end
 
 %for i = 1:last
-%    msg = zmq_subscriber('receive_next_message', subscriber_world);
+%    msg = zmq_subscriber('receive_next_message', subscriber_world, 3000);
 %    if i == 1 || i == last
 %        msg
 %    end
 %end
 
 for i = 1:3
-    zmq_subscriber('receive_next_message', subscriber_eye)
+    zmq_subscriber('receive_next_message', subscriber_eye, 3000)
 end
 
 for i = 1:3
-    zmq_subscriber('receive_next_message', subscriber_world)
+    zmq_subscriber('receive_next_message', subscriber_world, 3000)
 end
 
 zmq_subscriber('close');

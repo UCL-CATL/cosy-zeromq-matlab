@@ -7,7 +7,6 @@
 #include "mex.h"
 
 #define MAX_SUBSCRIBERS 128
-#define TIMEOUT_DURATION 3000 /* in milliseconds */
 
 /* Support multiple initializations, because if the Matlab script crashes, the process
  * isn't killed.
@@ -78,15 +77,29 @@ print_error (const char *msg)
 	mexErrMsgTxt (msg);
 }
 
-/* Receive 0MQ string from socket and convert into C string.
+static void
+close_msg (zmq_msg_t *msg)
+{
+	int ok;
+
+	ok = zmq_msg_close (msg);
+	if (ok != 0)
+	{
+		print_error ("zmq_subscriber error: impossible to close message struct.");
+	}
+}
+
+/* Receive 0MQ string from socket and convert into C string, with a timeout (in
+ * milliseconds).
  * Free the return value with free().
  */
 static char *
-receive_message (void *socket)
+receive_message (void *socket,
+		 double timeout)
 {
 	zmq_msg_t msg;
 	int ok;
-	int n_trials;
+	int time_elapsed;
 	char *str = NULL;
 
 	ok = zmq_msg_init (&msg);
@@ -95,39 +108,49 @@ receive_message (void *socket)
 		print_error ("zmq_subscriber error: impossible to init message struct.");
 	}
 
-	for (n_trials = 0; n_trials < TIMEOUT_DURATION; n_trials++)
+	time_elapsed = 0;
+	while (1)
 	{
 		int n_bytes;
 
 		n_bytes = zmq_msg_recv (&msg, socket, ZMQ_DONTWAIT);
-		if (n_bytes == -1 && errno == EAGAIN)
-		{
-			/* Sleep 1 ms and try again */
-			usleep (1000);
-			continue;
-		}
-		else if (n_bytes > 0)
+
+		if (n_bytes > 0)
 		{
 			void *raw_data;
 
 			raw_data = zmq_msg_data (&msg);
 			str = strndup ((char *) raw_data, n_bytes);
 		}
+		else if (n_bytes == -1 && errno == EAGAIN)
+		{
+			if (timeout <= 0)
+			{
+				/* Don't block, just try one time */
+				break;
+			}
+			else if (time_elapsed < timeout)
+			{
+				/* Sleep 1 ms and try again */
+				usleep (1000);
+				time_elapsed++;
+				continue;
+			}
+			else
+			{
+				close_msg (&msg);
+
+				print_error ("zmq_subscriber error: timeout reached. "
+					     "Is the publisher connected?");
+
+				return NULL;
+			}
+		}
 
 		break;
 	}
 
-	ok = zmq_msg_close (&msg);
-	if (ok != 0)
-	{
-		print_error ("zmq_subscriber error: impossible to close message struct.");
-	}
-
-	if (n_trials >= TIMEOUT_DURATION)
-	{
-		print_error ("zmq_subscriber error: timeout reached. "
-			     "Is the publisher connected?");
-	}
+	close_msg (&msg);
 
 	return str;
 }
@@ -298,6 +321,7 @@ parse_message (char *full_msg,
  */
 static int
 receive_next_message (int subscriber_id,
+		      double timeout,
 		      char ***field_names,
 		      char ***values)
 {
@@ -317,7 +341,7 @@ receive_next_message (int subscriber_id,
 	subscriber = subscribers[subscriber_id];
 	assert (subscriber != NULL);
 
-	full_msg = receive_message (subscriber);
+	full_msg = receive_message (subscriber, timeout);
 	n_fields = parse_message (full_msg, field_names, values);
 	free (full_msg);
 
@@ -415,8 +439,9 @@ mexFunction (int n_return_values,
 	}
 	else if (strcmp (command, "receive_next_message") == 0)
 	{
-		int *arg_data;
+		void *arg_data;
 		int subscriber_id;
+		double timeout;
 		char **field_names;
 		char **values;
 		int n_fields;
@@ -428,16 +453,34 @@ mexFunction (int n_return_values,
 				     "you cannot assign the result to more than one return variable.");
 		}
 
-		if (n_args > 2)
+		if (n_args > 3)
 		{
 			print_error ("zmq_subscriber error: receive_next_message command: "
 				     "too many arguments.");
 		}
 
-		arg_data = (int *) mxGetData (args[1]);
-		subscriber_id = *arg_data;
+		if (mxGetClassID (args[1]) != mxINT32_CLASS)
+		{
+			print_error ("zmq_subscriber error: receive_next_message command: "
+				     "the subscriber_id has an invalid type, it should be int32.");
+		}
 
-		n_fields = receive_next_message (subscriber_id, &field_names, &values);
+		arg_data = mxGetData (args[1]);
+		subscriber_id = *((int *) arg_data);
+
+		/* It seems that numeric types from Matlab are encoded as
+		 * doubles, even if there is no decimal separator (e.g. 3000).
+		 */
+		if (mxGetClassID (args[2]) != mxDOUBLE_CLASS)
+		{
+			print_error ("zmq_subscriber error: receive_next_message command: "
+				     "the timeout has an invalid type, it should be a double.");
+		}
+
+		arg_data = mxGetData (args[2]);
+		timeout = *((double *) arg_data);
+
+		n_fields = receive_next_message (subscriber_id, timeout, &field_names, &values);
 
 		return_values[0] = mxCreateStructMatrix (1, 1, n_fields, (const char **)field_names);
 
