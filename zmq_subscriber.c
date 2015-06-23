@@ -39,30 +39,40 @@ strsep (char **sp, char *sep)
 }
 #endif
 
-/* Receive 0MQ string from socket and convert into C string
- * Caller must free returned string. Returns NULL if the context
- * is being terminated.
- * Function taken from zhelpers.
- * TODO write a better function, instead of taking a fixed size.
+/* Receive 0MQ string from socket and convert into C string.
+ * Free the return value with free().
  */
 static char *
-s_recv (void *socket)
+receive_message (void *socket)
 {
-	char buffer [256];
-	int size = zmq_recv (socket, buffer, 255, 0);
+	zmq_msg_t msg;
+	int ok;
+	int n_bytes;
+	char *str = NULL;
 
-	if (size == -1)
+	ok = zmq_msg_init (&msg);
+	if (ok != 0)
 	{
-		return NULL;
+		mexErrMsgTxt ("zmq_subscriber error: impossible to init message struct.");
 	}
 
-	if (size > 255)
+	/* TODO use the ZMQ_DONTWAIT flag to not block Matlab */
+	n_bytes = zmq_msg_recv (&msg, socket, 0);
+	if (n_bytes > 0)
 	{
-		size = 255;
+		void *raw_data;
+
+		raw_data = zmq_msg_data (&msg);
+		str = strndup ((char *) raw_data, n_bytes);
 	}
 
-	buffer [size] = '\0';
-	return strdup (buffer);
+	ok = zmq_msg_close (&msg);
+	if (ok != 0)
+	{
+		mexErrMsgTxt ("zmq_subscriber error: impossible to close message struct.");
+	}
+
+	return str;
 }
 
 /* Convert C string to 0MQ string and send to socket.
@@ -214,9 +224,9 @@ count_lines (char *str)
  * Free 'field_names' and 'values' with str_array_free().
  */
 static int
-receive_message (int subscriber_id,
-		 char ***field_names,
-		 char ***values)
+receive_next_message (int subscriber_id,
+		      char ***field_names,
+		      char ***values)
 {
 	void *subscriber;
 	char *full_msg;
@@ -237,7 +247,7 @@ receive_message (int subscriber_id,
 	subscriber = subscribers[subscriber_id];
 	assert (subscriber != NULL);
 
-	full_msg = s_recv (subscriber);
+	full_msg = receive_message (subscriber);
 	n_fields = count_lines (full_msg);
 
 	*field_names = (char **) malloc (sizeof (char *) * n_fields);
@@ -396,7 +406,7 @@ mexFunction (int n_return_values,
 		arg_data = (int *) mxGetData (args[1]);
 		subscriber_id = *arg_data;
 
-		n_fields = receive_message (subscriber_id, &field_names, &values);
+		n_fields = receive_next_message (subscriber_id, &field_names, &values);
 
 		return_values[0] = mxCreateStructMatrix (1, 1, n_fields, (const char **)field_names);
 
