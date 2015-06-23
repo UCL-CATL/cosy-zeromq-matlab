@@ -1,4 +1,5 @@
 #include "zhelpers.h"
+#include <stdio.h>
 
 int
 main (void)
@@ -13,13 +14,16 @@ main (void)
 
 	context = zmq_ctx_new ();
 	subscriber_eye = zmq_socket (context, ZMQ_SUB);
+	printf ("connecting...\n");
 	ok = zmq_connect (subscriber_eye, "tcp://localhost:5000");
 	assert (ok == 0);
 
 	subscriber_world = zmq_socket (context, ZMQ_SUB);
 	ok = zmq_connect (subscriber_world, "tcp://localhost:5001");
 	assert (ok == 0);
+	printf ("connected.\n");
 
+	printf ("set filters...\n");
 	filter = "Pupil";
 	ok = zmq_setsockopt (subscriber_eye,
 			     ZMQ_SUBSCRIBE,
@@ -33,7 +37,9 @@ main (void)
 			     filter,
 			     strlen (filter));
 	assert (ok == 0);
+	printf ("filters set.\n");
 
+	printf ("receiving messages...\n");
 	last = 100 * 60 * 2;
 	for (i = 1; i <= last; i++)
 	{
