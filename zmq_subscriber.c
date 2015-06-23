@@ -3,9 +3,11 @@
 #include <zmq.h>
 #include <string.h>
 #include <assert.h>
+#include <unistd.h>
 #include "mex.h"
 
 #define MAX_SUBSCRIBERS 128
+#define TIMEOUT_DURATION 3000 /* in milliseconds */
 
 /* Support multiple initializations, because if the Matlab script crashes, the process
  * isn't killed.
@@ -47,7 +49,7 @@ receive_message (void *socket)
 {
 	zmq_msg_t msg;
 	int ok;
-	int n_bytes;
+	int n_trials;
 	char *str = NULL;
 
 	ok = zmq_msg_init (&msg);
@@ -56,14 +58,32 @@ receive_message (void *socket)
 		mexErrMsgTxt ("zmq_subscriber error: impossible to init message struct.");
 	}
 
-	/* TODO use the ZMQ_DONTWAIT flag to not block Matlab */
-	n_bytes = zmq_msg_recv (&msg, socket, 0);
-	if (n_bytes > 0)
+	for (n_trials = 0; n_trials < TIMEOUT_DURATION; n_trials++)
 	{
-		void *raw_data;
+		int n_bytes;
 
-		raw_data = zmq_msg_data (&msg);
-		str = strndup ((char *) raw_data, n_bytes);
+		n_bytes = zmq_msg_recv (&msg, socket, ZMQ_DONTWAIT);
+		if (n_bytes == -1 && errno == EAGAIN)
+		{
+			/* Sleep 1 ms and try again */
+			usleep (1000);
+			continue;
+		}
+		else if (n_bytes > 0)
+		{
+			void *raw_data;
+
+			raw_data = zmq_msg_data (&msg);
+			str = strndup ((char *) raw_data, n_bytes);
+		}
+
+		break;
+	}
+
+	if (n_trials >= TIMEOUT_DURATION)
+	{
+		mexErrMsgTxt ("zmq_subscriber error: timeout reached. "
+			      "Is the publisher connected?");
 	}
 
 	ok = zmq_msg_close (&msg);
