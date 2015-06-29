@@ -26,7 +26,7 @@ zmq_subscriber('add_filter', subscriber_world, 'Gaze');
 %end
 
 for i = 1:3
-    zmq_subscriber('receive_next_message', subscriber_eye, 3000)
+    zmq_subscriber('receive_next_message', subscriber_eye, 0)
 end
 
 for i = 1:3

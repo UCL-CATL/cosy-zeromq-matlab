@@ -256,6 +256,11 @@ count_lines (const char *str)
 	int n_lines = 0;
 	const char *p;
 
+	if (str == NULL)
+	{
+		return 0;
+	}
+
 	for (p = str; *p != '\0'; p++)
 	{
 		if (*p == '\n')
@@ -488,12 +493,19 @@ mexFunction (int n_return_values,
 
 		n_fields = receive_next_message (subscriber_id, timeout, &field_names, &values);
 
-		return_values[0] = mxCreateStructMatrix (1, 1, n_fields, (const char **)field_names);
-
-		for (i = 0; i < n_fields; i++)
+		if (n_fields > 0)
 		{
-			mxArray *value = mxCreateString (values[i]);
-			mxSetFieldByNumber (return_values[0], 0, i, value);
+			return_values[0] = mxCreateStructMatrix (1, 1, n_fields, (const char **)field_names);
+
+			for (i = 0; i < n_fields; i++)
+			{
+				mxArray *value = mxCreateString (values[i]);
+				mxSetFieldByNumber (return_values[0], 0, i, value);
+			}
+		}
+		else
+		{
+			return_values[0] = mxCreateDoubleScalar (mxGetNaN ());
 		}
 
 		str_array_free (field_names, n_fields);
