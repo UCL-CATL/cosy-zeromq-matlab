@@ -359,6 +359,20 @@ receive_next_message (int subscriber_id,
 	return n_fields;
 }
 
+static int
+get_subscriber_id (const mxArray *arg)
+{
+	int *arg_data;
+
+	if (mxGetClassID (arg) != mxINT32_CLASS)
+	{
+		print_error ("zmq_subscriber error: the subscriber_id has an invalid type, it should be int32.");
+	}
+
+	arg_data = (int *) mxGetData (arg);
+	return *arg_data;
+}
+
 void
 mexFunction (int n_return_values,
 	     mxArray *return_values[],
@@ -424,7 +438,6 @@ mexFunction (int n_return_values,
 	}
 	else if (strcmp (command, "add_filter") == 0)
 	{
-		int *arg_data;
 		int subscriber_id;
 		char *filter;
 
@@ -439,8 +452,13 @@ mexFunction (int n_return_values,
 			print_error ("zmq_subscriber error: add_filter command: too many arguments.");
 		}
 
-		arg_data = (int *) mxGetData (args[1]);
-		subscriber_id = *arg_data;
+		subscriber_id = get_subscriber_id (args[1]);
+
+		if (mxGetClassID (args[2]) != mxCHAR_CLASS)
+		{
+			print_error ("zmq_subscriber error: add_filter command: "
+				     "the filter argument has an invalid type, it should be a string.");
+		}
 
 		filter = mxArrayToString (args[2]);
 
@@ -450,7 +468,7 @@ mexFunction (int n_return_values,
 	}
 	else if (strcmp (command, "receive_next_message") == 0)
 	{
-		void *arg_data;
+		double *arg_data;
 		int subscriber_id;
 		double timeout;
 		char **field_names;
@@ -470,14 +488,7 @@ mexFunction (int n_return_values,
 				     "too many arguments.");
 		}
 
-		if (mxGetClassID (args[1]) != mxINT32_CLASS)
-		{
-			print_error ("zmq_subscriber error: receive_next_message command: "
-				     "the subscriber_id has an invalid type, it should be int32.");
-		}
-
-		arg_data = mxGetData (args[1]);
-		subscriber_id = *((int *) arg_data);
+		subscriber_id = get_subscriber_id (args[1]);
 
 		/* It seems that numeric types from Matlab are encoded as
 		 * doubles, even if there is no decimal separator (e.g. 3000).
@@ -488,8 +499,8 @@ mexFunction (int n_return_values,
 				     "the timeout has an invalid type, it should be a double.");
 		}
 
-		arg_data = mxGetData (args[2]);
-		timeout = *((double *) arg_data);
+		arg_data = (double *) mxGetData (args[2]);
+		timeout = *arg_data;
 
 		n_fields = receive_next_message (subscriber_id, timeout, &field_names, &values);
 
