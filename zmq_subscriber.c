@@ -131,7 +131,13 @@ receive_message (void *socket,
 			}
 			else if (time_elapsed < timeout)
 			{
-				/* Sleep 1 ms and try again */
+				/* Sleep 1 ms and try again.
+				 * Note: unfortunately, setting the ZMQ_RCVTIMEO
+				 * option with zmq_setsockopt() makes Matlab to
+				 * crash (with pthread in the backtrace). So do
+				 * the timeout ourselves, by polling ZeroMQ
+				 * every millisecond.
+				 */
 				usleep (1000);
 				time_elapsed++;
 				continue;
