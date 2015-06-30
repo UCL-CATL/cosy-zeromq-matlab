@@ -5,7 +5,9 @@
 #include <assert.h>
 #include <mex.h>
 
-#ifndef WIN32
+#ifdef WIN32
+#  include <windows.h>
+#else
 #  include <unistd.h>
 #endif
 
@@ -59,6 +61,16 @@ strndup (const char *s,
 	return memcpy (new, s, len);
 }
 #endif
+
+static void
+portable_sleep (int milliseconds)
+{
+#ifdef WIN32
+	Sleep (milliseconds);
+#else
+	usleep (milliseconds * 1000);
+#endif
+}
 
 static void
 close_zmq (void)
@@ -152,7 +164,7 @@ receive_message (void *socket,
 			 * pthread in the backtrace). So do the timeout
 			 * ourselves, by polling ZeroMQ every millisecond.
 			 */
-			usleep (1000);
+			portable_sleep (1);
 			time_elapsed++;
 			continue;
 		}
