@@ -122,35 +122,19 @@ receive_message (void *socket,
 			raw_data = zmq_msg_data (&msg);
 			str = strndup ((char *) raw_data, n_bytes);
 		}
-		else if (n_bytes == -1 && errno == EAGAIN)
+		else if (n_bytes == -1 &&
+			 errno == EAGAIN &&
+			 time_elapsed < timeout)
 		{
-			if (timeout <= 0)
-			{
-				/* Don't block, just try one time */
-				break;
-			}
-			else if (time_elapsed < timeout)
-			{
-				/* Sleep 1 ms and try again.
-				 * Note: unfortunately, setting the ZMQ_RCVTIMEO
-				 * option with zmq_setsockopt() makes Matlab to
-				 * crash (with pthread in the backtrace). So do
-				 * the timeout ourselves, by polling ZeroMQ
-				 * every millisecond.
-				 */
-				usleep (1000);
-				time_elapsed++;
-				continue;
-			}
-			else
-			{
-				close_msg (&msg);
-
-				print_error ("zmq_subscriber error: timeout reached. "
-					     "Is the publisher connected?");
-
-				return NULL;
-			}
+			/* Sleep 1 ms and try again.
+			 * Note: unfortunately, setting the ZMQ_RCVTIMEO option
+			 * with zmq_setsockopt() makes Matlab to crash (with
+			 * pthread in the backtrace). So do the timeout
+			 * ourselves, by polling ZeroMQ every millisecond.
+			 */
+			usleep (1000);
+			time_elapsed++;
+			continue;
 		}
 
 		break;

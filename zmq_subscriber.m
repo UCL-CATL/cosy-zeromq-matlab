@@ -12,19 +12,17 @@
 %    with zmq_setsockopt()).
 %
 %    message = zmq_subscriber('RECEIVE_NEXT_MESSAGE', subscriber_id, timeout)
-%    Receives the next message of a specific subscriber. If 'timeout' is 0,
-%    this function doesn't block and returns NaN if there is no message
-%    on the queue. If 'timeout' is greater than 0, the program exits with an
-%    error if there is no messages after 'timeout' milliseconds, probably
-%    because the publisher is not connected.
-%    The return value 'message' is either a NaN or a struct. This function
-%    assumes that the message received with ZeroMQ is:
+%    Receives the next message of a specific subscriber. The return value is
+%    either a struct or NaN. If after 'timeout' milliseconds there is still no
+%    messages on the queue, NaN is returned. If 'timeout' is 0, this function
+%    doesn't block. A NaN return value can mean that the publisher is not
+%    connected.
+%    This function assumes that the message received with ZeroMQ is:
 %        - a string
-%        - lines are terminated by LF (\n) characters
+%        - lines are terminated by LF (\n) characters (also the last line)
 %        - the first line contains a tag (the message_type in the struct)
-%        - the following lines have the format field:value.
-%        - the last line must also be terminated by a LF character (otherwise
-%          the field:value isn't extracted).
+%        - the following lines have the format field:value (which are extracted
+%          in the struct).
 %
 %    zmq_subscriber('CLOSE')
 %    Closes all subscribers, to free resources. It is important to call this
