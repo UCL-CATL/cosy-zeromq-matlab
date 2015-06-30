@@ -3,8 +3,11 @@
 #include <zmq.h>
 #include <string.h>
 #include <assert.h>
-#include <unistd.h>
-#include "mex.h"
+#include <mex.h>
+
+#ifndef WIN32
+#  include <unistd.h>
+#endif
 
 #define MAX_SUBSCRIBERS 128
 
@@ -15,12 +18,13 @@ static void *context = NULL;
 static void *subscribers[MAX_SUBSCRIBERS] = { NULL };
 static int next_subscriber_index = 0;
 
-#if (defined (WIN32))
-/* The function is available on GNU/Linux, but not on Windows.
- * Copy/paste from a version found on the web.
+/* Missing functions on Windows (those are available on GNU/Linux).
+ * Copy/paste of simple implementations found on the web.
  */
+#ifdef WIN32
 static char *
-strsep (char **sp, char *sep)
+strsep (char **sp,
+	char *sep)
 {
 	char *p, *s;
 
@@ -37,6 +41,22 @@ strsep (char **sp, char *sep)
 	}
 	*sp = p;
 	return s;
+}
+
+static char *
+strndup (const char *s,
+	 size_t n)
+{
+	size_t len = strnlen (s, n);
+	char *new = malloc (len + 1);
+
+	if (new == NULL)
+	{
+		return NULL;
+	}
+
+	new[len] = '\0';
+	return memcpy (new, s, len);
 }
 #endif
 
