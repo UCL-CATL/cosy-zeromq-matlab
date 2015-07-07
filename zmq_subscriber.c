@@ -20,31 +20,10 @@ static void *context = NULL;
 static void *subscribers[MAX_SUBSCRIBERS] = { NULL };
 static int next_subscriber_index = 0;
 
-/* Missing functions on Windows (those are available on GNU/Linux).
- * Copy/paste of simple implementations found on the web.
+/* Missing function on Windows (it is available on GNU/Linux).
+ * Copy/paste of a simple implementation found on the web.
  */
 #ifdef WIN32
-static char *
-strsep (char **sp,
-	char *sep)
-{
-	char *p, *s;
-
-	if (sp == NULL || *sp == NULL || **sp == '\0')
-	{
-		return NULL;
-	}
-
-	s = *sp;
-	p = s + strcspn(s, sep);
-	if (*p != '\0')
-	{
-		*p++ = '\0';
-	}
-	*sp = p;
-	return s;
-}
-
 static char *
 strndup (const char *s,
 	 size_t n)
@@ -121,62 +100,6 @@ close_msg (zmq_msg_t *msg)
 	}
 }
 
-/* Receive 0MQ string from socket and convert into C string, with a timeout (in
- * milliseconds).
- * Free the return value with free().
- */
-static char *
-receive_message (void *socket,
-		 double timeout)
-{
-	zmq_msg_t msg;
-	int ok;
-	int time_elapsed;
-	char *str = NULL;
-
-	ok = zmq_msg_init (&msg);
-	if (ok != 0)
-	{
-		print_error ("zmq_subscriber error: impossible to init message struct.");
-	}
-
-	time_elapsed = 0;
-	while (1)
-	{
-		int n_bytes;
-
-		n_bytes = zmq_msg_recv (&msg, socket, ZMQ_DONTWAIT);
-
-		if (n_bytes > 0)
-		{
-			void *raw_data;
-
-			raw_data = zmq_msg_data (&msg);
-			str = strndup ((char *) raw_data, n_bytes);
-		}
-		else if (n_bytes == -1 &&
-			 errno == EAGAIN &&
-			 time_elapsed < timeout)
-		{
-			/* Sleep 1 ms and try again.
-			 * Note: unfortunately, setting the ZMQ_RCVTIMEO option
-			 * with zmq_setsockopt() makes Matlab to crash (with
-			 * pthread in the backtrace). So do the timeout
-			 * ourselves, by polling ZeroMQ every millisecond.
-			 */
-			portable_sleep (1);
-			time_elapsed++;
-			continue;
-		}
-
-		break;
-	}
-
-	close_msg (&msg);
-
-	return str;
-}
-
 static void
 init_zmq (void)
 {
@@ -247,132 +170,70 @@ add_filter (int subscriber_id,
 	}
 }
 
-static void
-str_array_free (char **array,
-		int length)
-{
-	int i;
-
-	if (array == NULL)
-	{
-		return;
-	}
-
-	for (i = 0; i < length; i++)
-	{
-		free (array[i]);
-	}
-
-	free (array);
-}
-
-static int
-count_lines (const char *str)
-{
-	int n_lines = 0;
-	const char *p;
-
-	if (str == NULL)
-	{
-		return 0;
-	}
-
-	for (p = str; *p != '\0'; p++)
-	{
-		if (*p == '\n')
-		{
-			n_lines++;
-		}
-	}
-
-	return n_lines;
-}
-
-static int
-parse_message (char *full_msg,
-	       char ***field_names,
-	       char ***values)
-{
-	int n_fields;
-	char *msg;
-	char *line;
-	int field_num;
-
-	n_fields = count_lines (full_msg);
-
-	if (n_fields == 0)
-	{
-		return n_fields;
-	}
-
-	*field_names = (char **) malloc (sizeof (char *) * n_fields);
-	*values = (char **) malloc (sizeof (char *) * n_fields);
-
-	/* Get message type (first line). */
-	msg = full_msg;
-	line = strsep (&msg, "\n");
-
-	field_num = 0;
-	(*field_names)[field_num] = strdup ("message_type");
-	(*values)[field_num] = strdup (line);
-
-	/* Get next fields/values. */
-	while (msg != NULL && msg[0] != '\0')
-	{
-		char *field_name;
-		char *value;
-
-		line = strsep (&msg, "\n");
-		field_name = strsep (&line, ":");
-		value = line;
-
-		if (value == NULL)
-		{
-			value = "";
-		}
-
-		field_num++;
-		assert (field_num < n_fields);
-
-		(*field_names)[field_num] = strdup (field_name);
-		(*values)[field_num] = strdup (value);
-	}
-
-	return n_fields;
-}
-
-/* Receives the next zmq message, parse it and return the field names and the
- * values. The return value is the number of fields (and thus the number of
- * values too).
- * Free 'field_names' and 'values' with str_array_free().
+/* Receives the next zmq message as a string, with a timeout (in
+ * milliseconds).
+ * Free the return value with free() when no longer needed.
  */
-static int
+static char *
 receive_next_message (int subscriber_id,
-		      double timeout,
-		      char ***field_names,
-		      char ***values)
+		      double timeout)
 {
-	void *subscriber;
-	char *full_msg;
-	int n_fields;
-
-	*field_names = NULL;
-	*values = NULL;
+	void *socket;
+	zmq_msg_t msg;
+	int ok;
+	int time_elapsed;
+	char *str = NULL;
 
 	if (!valid_subscriber_id (subscriber_id))
 	{
 		mexPrintf ("Invalid subscriber ID.\n");
-		return 0;
+		return NULL;
 	}
 
-	subscriber = subscribers[subscriber_id];
-	assert (subscriber != NULL);
+	socket = subscribers[subscriber_id];
+	assert (socket != NULL);
 
-	full_msg = receive_message (subscriber, timeout);
-	n_fields = parse_message (full_msg, field_names, values);
-	free (full_msg);
+	ok = zmq_msg_init (&msg);
+	if (ok != 0)
+	{
+		print_error ("zmq_subscriber error: impossible to init message struct.");
+	}
 
-	return n_fields;
+	time_elapsed = 0;
+	while (1)
+	{
+		int n_bytes;
+
+		n_bytes = zmq_msg_recv (&msg, socket, ZMQ_DONTWAIT);
+
+		if (n_bytes > 0)
+		{
+			void *raw_data;
+
+			raw_data = zmq_msg_data (&msg);
+			str = strndup ((char *) raw_data, n_bytes);
+		}
+		else if (n_bytes == -1 &&
+			 errno == EAGAIN &&
+			 time_elapsed < timeout)
+		{
+			/* Sleep 1 ms and try again.
+			 * Note: unfortunately, setting the ZMQ_RCVTIMEO option
+			 * with zmq_setsockopt() makes Matlab to crash (with
+			 * pthread in the backtrace). So do the timeout
+			 * ourselves, by polling ZeroMQ every millisecond.
+			 */
+			portable_sleep (1);
+			time_elapsed++;
+			continue;
+		}
+
+		break;
+	}
+
+	close_msg (&msg);
+
+	return str;
 }
 
 static int
@@ -487,10 +348,7 @@ mexFunction (int n_return_values,
 		double *arg_data;
 		int subscriber_id;
 		double timeout;
-		char **field_names;
-		char **values;
-		int n_fields;
-		int i;
+		char *msg;
 
 		if (n_return_values > 1)
 		{
@@ -518,25 +376,18 @@ mexFunction (int n_return_values,
 		arg_data = (double *) mxGetData (args[2]);
 		timeout = *arg_data;
 
-		n_fields = receive_next_message (subscriber_id, timeout, &field_names, &values);
+		msg = receive_next_message (subscriber_id, timeout);
 
-		if (n_fields > 0)
+		if (msg != NULL)
 		{
-			return_values[0] = mxCreateStructMatrix (1, 1, n_fields, (const char **)field_names);
-
-			for (i = 0; i < n_fields; i++)
-			{
-				mxArray *value = mxCreateString (values[i]);
-				mxSetFieldByNumber (return_values[0], 0, i, value);
-			}
+			return_values[0] = mxCreateString (msg);
 		}
 		else
 		{
 			return_values[0] = mxCreateDoubleScalar (mxGetNaN ());
 		}
 
-		str_array_free (field_names, n_fields);
-		str_array_free (values, n_fields);
+		free (msg);
 	}
 	else if (strcmp (command, "close") == 0)
 	{
