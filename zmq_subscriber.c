@@ -6,39 +6,26 @@
 #include <zmq.h>
 
 #include "utils.h"
+#include "multi_connector.h"
 
 #define MAX_SUBSCRIBERS 128
 
-/* Support multiple initializations, because if the Matlab script crashes, the process
- * isn't killed.
- */
 static void *context = NULL;
 static void *subscribers[MAX_SUBSCRIBERS] = { NULL };
 static int next_subscriber_index = 0;
 
+/* Support multiple initializations, because if the Matlab script crashes, the
+ * the mex isn't unloaded.
+ */
+static MultiConnector *connector = NULL;
+
 static void
 close_zmq (void)
 {
-	int i;
-
-	for (i = 0; i < next_subscriber_index; i++)
+	if (connector != NULL)
 	{
-		assert (subscribers[i] != NULL);
-		zmq_close (subscribers[i]);
-		subscribers[i] = NULL;
-	}
-
-	for (i = next_subscriber_index; i < MAX_SUBSCRIBERS; i++)
-	{
-		assert (subscribers[i] == NULL);
-	}
-
-	next_subscriber_index = 0;
-
-	if (context != NULL)
-	{
-		zmq_ctx_destroy (context);
-		context = NULL;
+		multi_connector_free (connector);
+		connector = NULL;
 	}
 }
 
@@ -70,46 +57,14 @@ init_zmq (void)
 {
 	close_zmq ();
 
-	assert (context == NULL);
-	context = zmq_ctx_new ();
-
-	assert (next_subscriber_index == 0);
+	assert (connector == NULL);
+	connector = multi_connector_new ();
 }
 
 static int
 add_subscriber (const char *end_point)
 {
-	void *new_subscriber;
-	int index;
-	int ok;
-
-	if (next_subscriber_index >= MAX_SUBSCRIBERS)
-	{
-		print_error ("zmq_subscriber error: number of subscribers limit reached, see the MAX_SUBSCRIBERS #define.");
-	}
-
-	new_subscriber = zmq_socket (context, ZMQ_SUB);
-
-	ok = zmq_connect (new_subscriber, end_point);
-	if (ok != 0)
-	{
-		print_error ("zmq_subscriber error: impossible to connect to the end point.");
-	}
-
-	assert (new_subscriber != NULL);
-
-	index = next_subscriber_index;
-	subscribers[index] = new_subscriber;
-	next_subscriber_index++;
-
-	return index;
-}
-
-static int
-valid_subscriber_id (int subscriber_id)
-{
-	return (0 <= subscriber_id && subscriber_id < MAX_SUBSCRIBERS &&
-		subscriber_id < next_subscriber_index);
+	return multi_connector_add_socket (connector, ZMQ_SUB, end_point);
 }
 
 static void
@@ -119,13 +74,13 @@ add_filter (int subscriber_id,
 	void *subscriber;
 	int ok;
 
-	if (!valid_subscriber_id (subscriber_id))
+	if (!multi_connector_valid_socket_id (connector, subscriber_id))
 	{
 		mexPrintf ("Invalid subscriber ID.\n");
 		return;
 	}
 
-	subscriber = subscribers[subscriber_id];
+	subscriber = multi_connector_get_socket (connector, subscriber_id);
 	assert (subscriber != NULL);
 
 	ok = zmq_setsockopt (subscriber, ZMQ_SUBSCRIBE, filter, strlen (filter));
@@ -149,13 +104,13 @@ receive_next_message (int subscriber_id,
 	int time_elapsed;
 	char *str = NULL;
 
-	if (!valid_subscriber_id (subscriber_id))
+	if (!multi_connector_valid_socket_id (connector, subscriber_id))
 	{
 		mexPrintf ("Invalid subscriber ID.\n");
 		return NULL;
 	}
 
-	socket = subscribers[subscriber_id];
+	socket = multi_connector_get_socket (connector, subscriber_id);
 	assert (socket != NULL);
 
 	ok = zmq_msg_init (&msg);
