@@ -1,15 +1,11 @@
 /* ZeroMQ subscriber wrapper for Matlab */
 
-#include <zmq.h>
 #include <string.h>
 #include <assert.h>
 #include <mex.h>
+#include <zmq.h>
 
-#ifdef WIN32
-#  include <windows.h>
-#else
-#  include <unistd.h>
-#endif
+#include "utils.h"
 
 #define MAX_SUBSCRIBERS 128
 
@@ -19,37 +15,6 @@
 static void *context = NULL;
 static void *subscribers[MAX_SUBSCRIBERS] = { NULL };
 static int next_subscriber_index = 0;
-
-/* Missing function on Windows (it is available on GNU/Linux).
- * Copy/paste of a simple implementation found on the web.
- */
-#ifdef WIN32
-static char *
-strndup (const char *s,
-	 size_t n)
-{
-	size_t len = strnlen (s, n);
-	char *new = malloc (len + 1);
-
-	if (new == NULL)
-	{
-		return NULL;
-	}
-
-	new[len] = '\0';
-	return memcpy (new, s, len);
-}
-#endif
-
-static void
-portable_sleep (int milliseconds)
-{
-#ifdef WIN32
-	Sleep (milliseconds);
-#else
-	usleep (milliseconds * 1000);
-#endif
-}
 
 static void
 close_zmq (void)
