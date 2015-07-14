@@ -143,7 +143,7 @@ receive_next_message (int subscriber_id,
 			 * pthread in the backtrace). So do the timeout
 			 * ourselves, by polling ZeroMQ every millisecond.
 			 */
-			portable_sleep (1);
+			utils_portable_sleep (1);
 			time_elapsed++;
 			continue;
 		}
@@ -154,20 +154,6 @@ receive_next_message (int subscriber_id,
 	close_msg (&msg);
 
 	return str;
-}
-
-static int
-get_subscriber_id (const mxArray *arg)
-{
-	int *arg_data;
-
-	if (mxGetClassID (arg) != mxINT32_CLASS)
-	{
-		print_error ("zmq_subscriber error: the subscriber_id has an invalid type, it should be int32.");
-	}
-
-	arg_data = (int *) mxGetData (arg);
-	return *arg_data;
 }
 
 void
@@ -249,7 +235,7 @@ mexFunction (int n_return_values,
 			print_error ("zmq_subscriber error: add_filter command: too many arguments.");
 		}
 
-		subscriber_id = get_subscriber_id (args[1]);
+		subscriber_id = utils_get_socket_id (args[1]);
 
 		if (mxGetClassID (args[2]) != mxCHAR_CLASS)
 		{
@@ -282,7 +268,7 @@ mexFunction (int n_return_values,
 				     "too many arguments.");
 		}
 
-		subscriber_id = get_subscriber_id (args[1]);
+		subscriber_id = utils_get_socket_id (args[1]);
 
 		/* It seems that numeric types from Matlab are encoded as
 		 * doubles, even if there is no decimal separator (e.g. 3000).
