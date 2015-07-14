@@ -1,28 +1,21 @@
 /* ZeroMQ requester wrapper for Matlab */
 
+#include <string.h>
 #include <assert.h>
 #include <zmq.h>
 #include <mex.h>
+#include "multi_connector.h"
+#include "utils.h"
 
-/* Support multiple initializations, because if the Matlab script crashes, the process
- * isn't killed.
- */
-static void *context = NULL;
-static void *requester = NULL;
+static MultiConnector *connector = NULL;
 
 static void
 close_zmq (void)
 {
-	if (requester != NULL)
+	if (connector != NULL)
 	{
-		zmq_close (requester);
-		requester = NULL;
-	}
-
-	if (context != NULL)
-	{
-		zmq_ctx_destroy (context);
-		context = NULL;
+		multi_connector_free (connector);
+		connector = NULL;
 	}
 }
 
@@ -40,20 +33,34 @@ print_error (const char *msg)
 static void
 init_zmq (void)
 {
-	int ok;
-
 	close_zmq ();
 
-	assert (context == NULL);
-	context = zmq_ctx_new ();
+	assert (connector == NULL);
+	connector = multi_connector_new ();
+}
 
-	assert (requester == NULL);
-	requester = zmq_socket (context, ZMQ_REQ);
-	ok = zmq_connect (requester, "tcp://localhost:5555");
-	if (ok != 0)
+static int
+add_requester (const char *end_point)
+{
+	return multi_connector_add_socket (connector, ZMQ_REQ, end_point);
+}
+
+static void
+send_msg (int requester_id,
+	  const char *msg)
+{
+	void *requester;
+
+	if (!multi_connector_valid_socket_id (connector, requester_id))
 	{
-		print_error ("zmq_request error: impossible to connect to the end point.");
+		mexPrintf ("Invalid requester ID.\n");
+		return;
 	}
+
+	requester = multi_connector_get_socket (connector, requester_id);
+	assert (requester != NULL);
+
+	zmq_send (requester, msg, strlen (msg), 0);
 }
 
 void
@@ -91,6 +98,101 @@ mexFunction (int n_return_values,
 		}
 
 		init_zmq ();
+	}
+	else if (strcmp (command, "add_requester") == 0)
+	{
+		char *end_point;
+		int requester_id;
+		int *ret_data;
+
+		if (n_return_values > 1)
+		{
+			print_error ("zmq_request error: add_requester command: "
+				     "you cannot assign the result to more than one return variable.");
+		}
+
+		if (n_args > 2)
+		{
+			print_error ("zmq_request error: add_requester command: too many arguments.");
+		}
+
+		end_point = mxArrayToString (args[1]);
+
+		requester_id = add_requester (end_point);
+
+		return_values[0] = mxCreateNumericMatrix (1, 1, mxINT32_CLASS, mxREAL);
+		ret_data = (int *) mxGetData (return_values[0]);
+		*ret_data = requester_id;
+
+		mxFree (end_point);
+	}
+	else if (strcmp (command, "send") == 0)
+	{
+		int requester_id;
+		char *msg;
+
+		if (n_return_values > 0)
+		{
+			print_error ("zmq_request error: send command: "
+				     "you cannot assign a result with this call.");
+		}
+
+		if (n_args > 3)
+		{
+			print_error ("zmq_request error: send command: too many arguments.");
+		}
+
+		requester_id = utils_get_socket_id (args[1]);
+		msg = mxArrayToString (args[2]);
+
+		send_msg (requester_id, msg);
+
+		mxFree (msg);
+	}
+	else if (strcmp (command, "receive") == 0)
+	{
+		double *arg_data;
+		int requester_id;
+		double timeout;
+		char *msg;
+
+		if (n_return_values > 1)
+		{
+			print_error ("zmq_request error: receive command: "
+				     "you cannot assign the result to more than one return variable.");
+		}
+
+		if (n_args > 3)
+		{
+			print_error ("zmq_request error: receive command: too many arguments.");
+		}
+
+		requester_id = utils_get_socket_id (args[1]);
+
+		/* It seems that numeric types from Matlab are encoded as
+		 * doubles, even if there is no decimal separator (e.g. 3000).
+		 */
+		if (mxGetClassID (args[2]) != mxDOUBLE_CLASS)
+		{
+			print_error ("zmq_request error: receive command: "
+				     "the timeout has an invalid type, it should be a double.");
+		}
+
+		arg_data = (double *) mxGetData (args[2]);
+		timeout = *arg_data;
+
+		msg = multi_connector_receive_next_message (connector, requester_id, timeout);
+
+		if (msg != NULL)
+		{
+			return_values[0] = mxCreateString (msg);
+		}
+		else
+		{
+			return_values[0] = mxCreateDoubleScalar (mxGetNaN ());
+		}
+
+		free (msg);
 	}
 	else if (strcmp (command, "close") == 0)
 	{
