@@ -8,12 +8,6 @@
 #include "utils.h"
 #include "multi_connector.h"
 
-#define MAX_SUBSCRIBERS 128
-
-static void *context = NULL;
-static void *subscribers[MAX_SUBSCRIBERS] = { NULL };
-static int next_subscriber_index = 0;
-
 /* Support multiple initializations, because if the Matlab script crashes, the
  * the mex isn't unloaded.
  */
