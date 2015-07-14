@@ -17,4 +17,8 @@ int			multi_connector_valid_socket_id		(MultiConnector *connector,
 void *			multi_connector_get_socket		(MultiConnector *connector,
 								 int socket_id);
 
+char *			multi_connector_receive_next_message	(MultiConnector *connector,
+								 int socket_id,
+								 double timeout);
+
 #endif /* COSY_ZMQ_MULTI_CONNECTOR_H */
