@@ -10,28 +10,42 @@ int
 main (void)
 {
 	void *context;
-	void *requester;
+	void *requester1;
+	void *requester2;
 	int i;
 
-	printf ("Connecting to hello world server...\n");
-
 	context = zmq_ctx_new ();
-	requester = zmq_socket (context, ZMQ_REQ);
-	zmq_connect (requester, "tcp://localhost:5555");
 
-	for (i = 0; i < 10; i++)
+	requester1 = zmq_socket (context, ZMQ_REQ);
+	zmq_connect (requester1, "tcp://localhost:5555");
+
+	requester2 = zmq_socket (context, ZMQ_REQ);
+	zmq_connect (requester2, "tcp://localhost:5556");
+
+	for (i = 0; i < 2; i++)
 	{
-		char *msg;
+		char *request;
+		char *reply;
 
-		printf ("Sending hello %d...\n", i);
-		zmq_send (requester, "hello", 5, 0);
+		request = "bing";
+		printf ("Request: %s\n", request);
+		zmq_send (requester1, request, strlen (request), 0);
 
-		msg = s_recv (requester);
-		printf ("Received %s\n", msg);
-		free (msg);
+		reply = s_recv (requester1);
+		printf ("Reply: %s\n", reply);
+		free (reply);
+
+		request = "bong";
+		printf ("Request: %s\n", request);
+		zmq_send (requester2, request, strlen (request), 0);
+
+		reply = s_recv (requester2);
+		printf ("Reply: %s\n", reply);
+		free (reply);
 	}
 
-	zmq_close (requester);
+	zmq_close (requester1);
+	zmq_close (requester2);
 	zmq_ctx_destroy (context);
 	return 0;
 }
