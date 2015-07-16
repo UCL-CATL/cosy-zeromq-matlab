@@ -126,7 +126,7 @@ mexFunction (int n_return_values,
 
 		mxFree (end_point);
 	}
-	else if (strcmp (command, "send") == 0)
+	else if (strcmp (command, "send_request") == 0)
 	{
 		int requester_id;
 		char *msg;
@@ -149,7 +149,7 @@ mexFunction (int n_return_values,
 
 		mxFree (msg);
 	}
-	else if (strcmp (command, "receive") == 0)
+	else if (strcmp (command, "receive_reply") == 0)
 	{
 		double *arg_data;
 		int requester_id;
