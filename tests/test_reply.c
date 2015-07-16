@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <assert.h>
+#include "zhelpers.h"
 
 int
 main (void)
@@ -20,15 +21,16 @@ main (void)
 
 	while (1)
 	{
-		char buffer[10];
+		char *msg;
 
-		zmq_recv (responder, buffer, 10, 0);
-		printf ("Received Hello\n");
+		msg = s_recv (responder);
+		printf ("Received:%s\n", msg);
+		free (msg);
 
 		/* Do some "work" */
 		sleep (1);
 
-		zmq_send (responder, "World", 5, 0);
+		zmq_send (responder, "world", 5, 0);
 	}
 
 	return 0;

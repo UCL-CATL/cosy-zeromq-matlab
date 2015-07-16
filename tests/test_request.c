@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+#include "zhelpers.h"
 
 int
 main (void)
@@ -20,11 +21,14 @@ main (void)
 
 	for (i = 0; i < 10; i++)
 	{
-		char buffer[10];
-		printf ("Sending Hello %d...\n", i);
-		zmq_send (requester, "Hello", 5, 0);
-		zmq_recv (requester, buffer, 10, 0);
-		printf ("Received World %d\n", i);
+		char *msg;
+
+		printf ("Sending hello %d...\n", i);
+		zmq_send (requester, "hello", 5, 0);
+
+		msg = s_recv (requester);
+		printf ("Received %s\n", msg);
+		free (msg);
 	}
 
 	zmq_close (requester);
