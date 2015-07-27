@@ -226,6 +226,10 @@ mexFunction (int n_return_values,
 
 		close_zmq ();
 	}
+	else
+	{
+		print_error ("zmq_subscriber error: unknown command.");
+	}
 
 	mxFree (command);
 }
