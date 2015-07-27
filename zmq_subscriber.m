@@ -16,7 +16,8 @@
 %    the message as a string, or NaN.  If after 'timeout' milliseconds there is
 %    still no messages on the queue, NaN is returned. If 'timeout' is 0, this
 %    function doesn't block. With a long timeout, a NaN return value can mean
-%    that the publisher is not connected.
+%    that the publisher is not connected. To block until a message is
+%    available, set a timeout of -1.
 %
 %    zmq_subscriber('CLOSE')
 %    Closes all subscribers, to free resources. It is important to call this
