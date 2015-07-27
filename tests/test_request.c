@@ -18,9 +18,11 @@ main (void)
 
 	requester1 = zmq_socket (context, ZMQ_REQ);
 	zmq_connect (requester1, "tcp://localhost:5555");
+	printf ("requester1 connected\n");
 
 	requester2 = zmq_socket (context, ZMQ_REQ);
 	zmq_connect (requester2, "tcp://localhost:5556");
+	printf ("requester2 connected\n");
 
 	for (i = 0; i < 2; i++)
 	{
@@ -28,19 +30,23 @@ main (void)
 		char *reply;
 
 		request = "bing";
-		printf ("Request: %s\n", request);
+		printf ("Send request: %s ...\n", request);
 		zmq_send (requester1, request, strlen (request), 0);
+		printf ("...done.\n");
 
+		printf ("Receive reply...\n");
 		reply = s_recv (requester1);
-		printf ("Reply: %s\n", reply);
+		printf ("Reply received: %s\n", reply);
 		free (reply);
 
 		request = "bong";
-		printf ("Request: %s\n", request);
+		printf ("Send request: %s ...\n", request);
 		zmq_send (requester2, request, strlen (request), 0);
+		printf ("...done.\n");
 
+		printf ("Receive reply...\n");
 		reply = s_recv (requester2);
-		printf ("Reply: %s\n", reply);
+		printf ("Reply received: %s\n", reply);
 		free (reply);
 	}
 
