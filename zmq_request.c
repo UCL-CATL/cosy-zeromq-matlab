@@ -42,7 +42,23 @@ init_zmq (void)
 static int
 add_requester (const char *end_point)
 {
-	return multi_connector_add_socket (connector, ZMQ_REQ, end_point);
+	int requester_id;
+	void *socket;
+	int linger_value;
+	int ok;
+
+	requester_id = multi_connector_add_socket (connector, ZMQ_REQ, end_point);
+
+	/* If the replier isn't connected, closing the socket should not block. */
+	socket = multi_connector_get_socket (connector, requester_id);
+	linger_value = 0;
+	ok = zmq_setsockopt (socket, ZMQ_LINGER, &linger_value, sizeof (int));
+	if (ok != 0)
+	{
+		print_error ("zmq_request error: impossible to set linger socket option.");
+	}
+
+	return requester_id;
 }
 
 static void
