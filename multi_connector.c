@@ -132,10 +132,11 @@ multi_connector_receive_next_message (MultiConnector *connector,
 				      double timeout)
 {
 	void *socket;
+	int timeout_value;
 	zmq_msg_t msg;
-	int ok;
-	int time_elapsed;
+	int n_bytes;
 	char *str = NULL;
+	int ok;
 
 	if (!multi_connector_valid_socket_id (connector, socket_id))
 	{
@@ -146,42 +147,26 @@ multi_connector_receive_next_message (MultiConnector *connector,
 	socket = connector->sockets[socket_id];
 	assert (socket != NULL);
 
+	timeout_value = timeout;
+	ok = zmq_setsockopt (socket, ZMQ_RCVTIMEO, &timeout_value, sizeof (int));
+	if (ok != 0)
+	{
+		mexErrMsgTxt ("zmq multi_connector error: impossible to set timeout option.");
+	}
+
 	ok = zmq_msg_init (&msg);
 	if (ok != 0)
 	{
 		mexErrMsgTxt ("zmq multi_connector error: impossible to init the message struct.");
 	}
 
-	time_elapsed = 0;
-	while (1)
+	n_bytes = zmq_msg_recv (&msg, socket, 0);
+	if (n_bytes > 0)
 	{
-		int n_bytes;
+		void *raw_data;
 
-		n_bytes = zmq_msg_recv (&msg, socket, ZMQ_DONTWAIT);
-
-		if (n_bytes > 0)
-		{
-			void *raw_data;
-
-			raw_data = zmq_msg_data (&msg);
-			str = strndup ((char *) raw_data, n_bytes);
-		}
-		else if (n_bytes == -1 &&
-			 errno == EAGAIN &&
-			 time_elapsed < timeout)
-		{
-			/* Sleep 1 ms and try again.
-			 * Note: unfortunately, setting the ZMQ_RCVTIMEO option
-			 * with zmq_setsockopt() makes Matlab to crash (with
-			 * pthread in the backtrace). So do the timeout
-			 * ourselves, by polling ZeroMQ every millisecond.
-			 */
-			utils_portable_sleep (1);
-			time_elapsed++;
-			continue;
-		}
-
-		break;
+		raw_data = zmq_msg_data (&msg);
+		str = strndup ((char *) raw_data, n_bytes);
 	}
 
 	close_msg (&msg);

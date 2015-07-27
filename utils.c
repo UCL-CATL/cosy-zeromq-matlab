@@ -1,11 +1,5 @@
 #include <mex.h>
 
-#ifdef WIN32
-#  include <windows.h>
-#else
-#  include <unistd.h>
-#endif
-
 /* Missing function on Windows (it is available on GNU/Linux).
  * Copy/paste of a simple implementation found on the web.
  */
@@ -26,16 +20,6 @@ strndup (const char *s,
 	return memcpy (new, s, len);
 }
 #endif
-
-void
-utils_portable_sleep (int milliseconds)
-{
-#ifdef WIN32
-	Sleep (milliseconds);
-#else
-	usleep (milliseconds * 1000);
-#endif
-}
 
 int
 utils_get_socket_id (const mxArray *arg)
