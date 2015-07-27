@@ -25,12 +25,14 @@ zmq_subscriber('add_filter', subscriber_world, 'Gaze');
 %    end
 %end
 
-for i = 1:3
-    zmq_subscriber('receive_next_message', subscriber_eye, 0)
-end
+msg_eye = zmq_subscriber('receive_next_message', subscriber_eye, 0)
+msg_eye = zmq_subscriber('receive_next_message', subscriber_eye, 0)
+msg_eye = zmq_subscriber('receive_next_message', subscriber_eye, 3000)
 
-for i = 1:3
-    zmq_subscriber('receive_next_message', subscriber_world, 3000)
-end
+msg_world = zmq_subscriber('receive_next_message', subscriber_world, 3000)
+msg_world = zmq_subscriber('receive_next_message', subscriber_world, 2000)
+msg_world = zmq_subscriber('receive_next_message', subscriber_world, 1000)
+
+msg_eye = zmq_subscriber('receive_next_message', subscriber_eye, -1)
 
 zmq_subscriber('close');
