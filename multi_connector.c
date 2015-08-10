@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <zmq.h>
 #include <mex.h>
+#include "utils.h"
 
 #define MAX_SOCKETS 128
 

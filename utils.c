@@ -1,9 +1,9 @@
-#include <mex.h>
+#include "utils.h"
 
 /* Missing function on Windows (it is available on GNU/Linux).
  * Copy/paste of a simple implementation found on the web.
  */
-#ifdef WIN32
+#ifdef _WIN32
 char *
 strndup (const char *s,
 	 size_t n)
