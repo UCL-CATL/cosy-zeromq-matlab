@@ -27,11 +27,11 @@
 %    Example:
 %    zmq_subscriber('init');
 %
-%    subscriber_eye = zmq_subscriber('add_subscriber', 'tcp://localhost:5000');
-%    zmq_subscriber('add_filter', subscriber_eye, 'Pupil');
+%    subscriber = zmq_subscriber('add_subscriber', 'tcp://localhost:5000');
+%    zmq_subscriber('add_filter', subscriber, 'filter');
 %
-%    msg = zmq_subscriber('receive_next_message', subscriber_eye, 3000)
+%    msg = zmq_subscriber('receive_next_message', subscriber, 3000)
 %
 %    zmq_subscriber('close');
 %
-% Sébastien Wilmet, 2015.
+% Sébastien Wilmet, 2015-2016.

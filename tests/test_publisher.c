@@ -1,11 +1,9 @@
-/* Publisher, sends messages similar to the Pupil. */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include "zhelpers.h"
 
-#define MAX_MSG_LENGTH 256
+#define MAX_MSG_LENGTH 80
 #define SLEEP_TIME 10 /* in ms */
 
 int
@@ -22,8 +20,8 @@ main (int argc,
 	if (argc != 3)
 	{
 		fprintf (stderr, "Usage: %s <endpoint> <tag>\n", argv[0]);
-		fprintf (stderr, "Example 1: %s tcp://*:5000 Pupil\n", argv[0]);
-		fprintf (stderr, "Example 2: %s tcp://*:5001 Gaze\n", argv[0]);
+		fprintf (stderr, "Example 1: %s tcp://*:5000 filter1\n", argv[0]);
+		fprintf (stderr, "Example 2: %s tcp://*:5001 filter2\n", argv[0]);
 		return EXIT_FAILURE;
 	}
 

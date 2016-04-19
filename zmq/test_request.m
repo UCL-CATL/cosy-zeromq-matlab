@@ -34,9 +34,5 @@ for i = 1:2
     end
 end
 
-disp('Closing...');
-% "force" the display of the message
-pause(2);
-
 zmq_request('close');
-disp('...done.');
+disp('Closed');

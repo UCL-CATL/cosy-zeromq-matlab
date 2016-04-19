@@ -5,34 +5,33 @@ int
 main (void)
 {
 	void *context;
-	void *subscriber_eye;
-	void *subscriber_world;
+	void *subscriber1;
+	void *subscriber2;
 	char *filter;
 	int i;
-	int last;
 	int ok;
 
 	context = zmq_ctx_new ();
-	subscriber_eye = zmq_socket (context, ZMQ_SUB);
+	subscriber1 = zmq_socket (context, ZMQ_SUB);
 	printf ("connecting...\n");
-	ok = zmq_connect (subscriber_eye, "tcp://localhost:5000");
+	ok = zmq_connect (subscriber1, "tcp://localhost:5000");
 	assert (ok == 0);
 
-	subscriber_world = zmq_socket (context, ZMQ_SUB);
-	ok = zmq_connect (subscriber_world, "tcp://localhost:5001");
+	subscriber2 = zmq_socket (context, ZMQ_SUB);
+	ok = zmq_connect (subscriber2, "tcp://localhost:5001");
 	assert (ok == 0);
 	printf ("connected.\n");
 
 	printf ("set filters...\n");
-	filter = "Pupil";
-	ok = zmq_setsockopt (subscriber_eye,
+	filter = "filter1";
+	ok = zmq_setsockopt (subscriber1,
 			     ZMQ_SUBSCRIBE,
 			     filter,
 			     strlen (filter));
 	assert (ok == 0);
 
-	filter = "Gaze";
-	ok = zmq_setsockopt (subscriber_world,
+	filter = "filter2";
+	ok = zmq_setsockopt (subscriber2,
 			     ZMQ_SUBSCRIBE,
 			     filter,
 			     strlen (filter));
@@ -40,33 +39,22 @@ main (void)
 	printf ("filters set.\n");
 
 	printf ("receiving messages...\n");
-	last = 100 * 60 * 2;
-	for (i = 1; i <= last; i++)
+	for (i = 0; i < 3; i++)
 	{
-		char *msg = s_recv (subscriber_eye);
-
-		if (i == 1 || i == last)
-		{
-			printf ("Eye:\n%s\n", msg);
-		}
-
+		char *msg = s_recv (subscriber1);
+		printf ("%s\n", msg);
 		free (msg);
 	}
 
-	for (i = 1; i <= last; i++)
+	for (i = 0; i < 3; i++)
 	{
-		char *msg = s_recv (subscriber_world);
-
-		if (i == 1 || i == last)
-		{
-			printf ("World:\n%s\n", msg);
-		}
-
+		char *msg = s_recv (subscriber2);
+		printf ("%s\n", msg);
 		free (msg);
 	}
 
-	zmq_close (subscriber_eye);
-	zmq_close (subscriber_world);
+	zmq_close (subscriber1);
+	zmq_close (subscriber2);
 	zmq_ctx_destroy (context);
 	return 0;
 }
