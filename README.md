@@ -14,6 +14,9 @@ neither possible to run a replier in Matlab nor a publisher.
 For some functions, a timeout parameter can be given, to either block until a
 message has arrived, or wait for a certain time, or do not block at all.
 
+cosy-zeromq-matlab is licensed under the GNU Lesser General Public License
+version 3 or later.
+
 Developed at the Cognition and System division (COSY) of the [Institute of
 NeuroSciences](http://www.uclouvain.be/en-ions.html) at the Université
 Catholique de Louvain, Belgium.
