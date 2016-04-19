@@ -1,7 +1,7 @@
 cosy-zeromq-matlab
 ==================
 
-Incomplete [ZeroMQ](http://zeromq.org/) bindings for Matlab.
+Basic [ZeroMQ](http://zeromq.org/) bindings for Matlab.
 
 Communication patterns supported:
 - Request-Reply
