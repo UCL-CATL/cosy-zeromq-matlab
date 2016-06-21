@@ -3,6 +3,8 @@ cosy-zeromq-matlab
 
 Basic [ZeroMQ](http://zeromq.org/) bindings for Matlab.
 
+Version: 1.0
+
 Communication patterns supported:
 - Request-Reply
 - Publisher-Subscriber
