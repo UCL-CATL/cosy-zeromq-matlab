@@ -41,7 +41,7 @@ Tests
 -----
 
 In the `tests/` directory, there are some tests written in C that can be
-compiled on GNU/Linux with the `make all` command.
+compiled on GNU/Linux with the `make` command.
 
 In the `zmq/` directory, there are also some *.m files to test the bindings.
 
