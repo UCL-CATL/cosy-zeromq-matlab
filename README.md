@@ -21,9 +21,10 @@ Works on both GNU/Linux and Windows.
 cosy-zeromq-matlab is licensed under the GNU Lesser General Public License
 version 3 or later.
 
-Developed at the Cognition and System division (COSY) of the [Institute of
-NeuroSciences](http://www.uclouvain.be/en-ions.html) at the Université
-Catholique de Louvain, Belgium.
+The software in this repository is developed by the
+[Institute of NeuroScience](https://uclouvain.be/en/research-institutes/ions),
+[UCLouvain](https://uclouvain.be/en/),
+Belgium.
 
 We use the bindings to communicate with the [Pupil](https://pupil-labs.com/)
 eye tracking software, in combination with the
